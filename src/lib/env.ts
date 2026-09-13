@@ -1,0 +1,141 @@
+/**
+ * Environment variable validation.
+ * Provides clear error messages when required env vars are missing.
+ * Server-only variables must never be prefixed with NEXT_PUBLIC_.
+ */
+
+import { z } from "zod";
+
+const serverEnvSchema = z.object({
+  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
+  // Production site URL (server-only, for payment return/cancel URLs)
+  SITE_URL: z.string().url().optional(),
+  // payOS Payment Provider (server-only, never exposed to browser)
+  PAYOS_CLIENT_ID: z.string().min(1).optional(),
+  PAYOS_API_KEY: z.string().min(1).optional(),
+  PAYOS_CHECKSUM_KEY: z.string().min(1).optional(),
+
+  CLOUDCONVERT_API_KEY: z.string().optional(),
+
+  // Features
+  NEXT_PUBLIC_ENABLE_ANALYTICS: z
+    .string().optional(),
+  // Email
+  EMAIL_API_KEY: z.string().optional(),
+  EMAIL_FROM: z.string().email().optional(),
+  ADMIN_SECRET_KEY: z.string().optional(),
+  // Order access cookie signing secret (min 32 chars for production)
+  ORDER_ACCESS_SECRET: z.string().min(32).optional(),
+  // Delivery access cookie signing secret (min 32 chars for production)
+  DELIVERY_ACCESS_SECRET: z.string().min(32).optional(),
+  // My Orders access cookie and magic link encryption secret (min 32 chars for production)
+  MY_ORDERS_ACCESS_SECRET: z.string().min(32).optional(),
+  // Resend email provider
+  RESEND_API_KEY: z.string().min(1).optional(),
+
+  // ─── Cloudflare R2 Product File Storage (server-only) ──────────
+  R2_ACCOUNT_ID: z.string().min(1).optional(),
+  R2_ACCESS_KEY_ID: z.string().min(1).optional(),
+  R2_SECRET_ACCESS_KEY: z.string().min(1).optional(),
+  R2_BUCKET_NAME: z.string().min(1).optional(),
+  // Storage provider for new product files: SUPABASE or R2
+  PRODUCT_FILE_STORAGE_PROVIDER: z.enum(["SUPABASE", "R2"]).default("SUPABASE"),
+});
+
+const clientEnvSchema = z.object({
+  NEXT_PUBLIC_SITE_URL: z.string().url().default("http://localhost:3000"),
+  NEXT_PUBLIC_SUPABASE_URL: z.string().min(1).optional(),
+  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: z.string().min(1).optional(),
+});
+
+export type ServerEnv = z.infer<typeof serverEnvSchema>;
+export type ClientEnv = z.infer<typeof clientEnvSchema>;
+
+/**
+ * Validates and returns server-side environment variables.
+ * Should only be called in server-side code.
+ */
+export function getServerEnv(): ServerEnv {
+  const result = serverEnvSchema.safeParse(process.env);
+  if (!result.success) {
+    console.error(
+      "❌ Server environment variable validation failed:",
+      result.error.flatten().fieldErrors,
+    );
+    throw new Error(
+      "Missing or invalid server environment variables. Check .env.local against .env.example.",
+    );
+  }
+  return result.data;
+}
+
+/**
+ * Validates and returns client-side environment variables.
+ * These variables are safe to expose in the browser bundle.
+ */
+export function getClientEnv(): ClientEnv {
+  const result = clientEnvSchema.safeParse({
+    NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
+    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+  });
+  if (!result.success) {
+    console.error(
+      "❌ Client environment variable validation failed:",
+      result.error.flatten().fieldErrors,
+    );
+    throw new Error(
+      "Missing or invalid client environment variables. Check .env.local against .env.example.",
+    );
+  }
+  return result.data;
+}
+
+/**
+ * Check if Supabase is configured. Used to gracefully degrade
+ * to mock data during development without Supabase credentials.
+ */
+export function isSupabaseConfigured(): boolean {
+  return !!(
+    process.env.NEXT_PUBLIC_SUPABASE_URL &&
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+  );
+}
+
+/**
+ * Check if payOS payment provider is configured.
+ * All three credentials must be present.
+ */
+export function isPayOSConfigured(): boolean {
+  return !!(
+    process.env.PAYOS_CLIENT_ID &&
+    process.env.PAYOS_API_KEY &&
+    process.env.PAYOS_CHECKSUM_KEY
+  );
+}
+
+/**
+ * Check if Cloudflare R2 is configured for product file storage.
+ * All four R2 env vars must be present.
+ */
+export function isR2Configured(): boolean {
+  return !!(
+    process.env.R2_ACCOUNT_ID &&
+    process.env.R2_ACCESS_KEY_ID &&
+    process.env.R2_SECRET_ACCESS_KEY &&
+    process.env.R2_BUCKET_NAME
+  );
+}
+
+/**
+ * Get the active storage provider for new product file uploads.
+ * Returns 'SUPABASE' if R2 is not configured even when env says R2.
+ */
+export function getActiveStorageProvider(): "SUPABASE" | "R2" {
+  const configured = process.env.PRODUCT_FILE_STORAGE_PROVIDER ?? "SUPABASE";
+  if (configured === "R2" && !isR2Configured()) {
+    console.error("[Env] PRODUCT_FILE_STORAGE_PROVIDER=R2 but R2 credentials are missing.");
+    throw new Error("R2 storage provider is configured but R2 credentials are missing.");
+  }
+  return configured as "SUPABASE" | "R2";
+}

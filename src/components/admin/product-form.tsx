@@ -1,0 +1,1056 @@
+"use client";
+
+import { useState, useTransition, useCallback, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
+import {
+  Loader2,
+  Upload,
+  X,
+  FileText,
+  ImageIcon,
+  File,
+  AlertCircle,
+  Wand2,
+  RefreshCcw,
+  AlertTriangle,
+} from "lucide-react";
+import Image from "next/image";
+import type { ProductWithCategory } from "@/features/products/types";
+import type { DbCategory, DbProductFile, DbProductPreview } from "@/types/database";
+import { createProduct, updateProduct, toggleProductActive } from "@/features/products/actions";
+import { removeProductFileRecord, generatePreviewAction, deleteProductPreview } from "@/features/products/file-actions";
+import {
+  uploadProductAsset,
+  deleteProductAsset,
+} from "@/features/products/storage";
+import { prepareR2Upload } from "@/features/products/r2-multipart-upload";
+import { getProductAssetUrl } from "@/lib/storage/storage";
+import { formatCurrency, formatFileSize } from "@/lib/utils";
+
+function generateSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "d")
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+interface ProductFormProps {
+  product?: ProductWithCategory | null;
+  productFiles?: DbProductFile[];
+  categories: DbCategory[];
+  allProducts?: { id: string; name: string; product_type: string; is_active: boolean }[];
+  initialRelatedIds?: string[];
+  initialBonusIncludedIds?: string[];
+  previewRecord?: DbProductPreview | null;
+  mode: "create" | "edit";
+}
+
+export function ProductForm({
+  product,
+  productFiles = [],
+  categories,
+  allProducts = [],
+  initialRelatedIds = [],
+  initialBonusIncludedIds = [],
+  previewRecord = null,
+  mode,
+}: ProductFormProps) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const [slugManual, setSlugManual] = useState(mode === "edit");
+
+  // Form state
+  const [name, setName] = useState(product?.name ?? "");
+  const [slug, setSlug] = useState(product?.slug ?? "");
+  const [productType, setProductType] = useState<"PAID" | "BONUS">(
+    (product?.product_type as "PAID" | "BONUS") ?? "PAID"
+  );
+  const [shortDesc, setShortDesc] = useState(product?.short_description ?? "");
+  const [description, setDescription] = useState(product?.description ?? "");
+  const [price, setPrice] = useState(product?.price?.toString() ?? "");
+  const [originalPrice, setOriginalPrice] = useState(
+    product?.original_price?.toString() ?? "",
+  );
+  const [categoryId, setCategoryId] = useState(product?.category_id ?? "");
+  const [pageCount, setPageCount] = useState(
+    product?.page_count?.toString() ?? "",
+  );
+  const [fileFormat] = useState(product?.file_format ?? "docx");
+  const [featuresText, setFeaturesText] = useState(
+    product?.features?.join("\n") ?? "Có đáp án chi tiết\nTải xuống ngay lập tức"
+  );
+  const [suitableForText, setSuitableForText] = useState(
+    product?.suitable_for?.join("\n") ?? "Học sinh lớp 9\nGiáo viên Ngữ văn"
+  );
+  const [relatedIds, setRelatedIds] = useState<string[]>(initialRelatedIds);
+  const [bonusIncludedIds, setBonusIncludedIds] = useState<string[]>(initialBonusIncludedIds);
+  const [currentPreviewRecord, setCurrentPreviewRecord] = useState<DbProductPreview | null>(previewRecord);
+
+  // Image state
+  const [thumbnailPath, setThumbnailPath] = useState(
+    product?.thumbnail_path ?? null,
+  );
+  const [previewImages, setPreviewImages] = useState<string[]>(
+    product?.preview_images ?? [],
+  );
+
+  // File state
+  const [files, setFiles] = useState<DbProductFile[]>(productFiles);
+
+  // Upload state — simple string for images/preview, structured for product files
+  const [uploading, setUploading] = useState<string | null>(null);
+
+  // R2 multipart file upload state
+  const [fileUpload, setFileUpload] = useState<{
+    status: 'idle' | 'uploading' | 'success' | 'error';
+    fileName: string;
+    bytesUploaded: number;
+    bytesTotal: number;
+    percentage: number;
+    isLargeFile: boolean;
+    error?: string;
+  }>({ status: 'idle', fileName: '', bytesUploaded: 0, bytesTotal: 0, percentage: 0, isLargeFile: false });
+
+  // Keep a ref to the R2 abort function so we can cancel on unmount or user action
+  const r2AbortRef = useRef<(() => Promise<void>) | null>(null);
+
+  // Feedback
+  const [feedback, setFeedback] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
+
+  // Created product ID (for new products after initial save)
+  const [savedProductId, setSavedProductId] = useState<string | null>(
+    product?.id ?? null,
+  );
+
+  // Cleanup: abort any active R2 upload on unmount
+  useEffect(() => {
+    return () => {
+      if (r2AbortRef.current) {
+        r2AbortRef.current();
+      }
+    };
+  }, []);
+
+  const isFileUploading = fileUpload.status === 'uploading';
+
+  function handleNameChange(value: string) {
+    setName(value);
+    if (!slugManual) {
+      setSlug(generateSlug(value));
+    }
+  }
+
+  const handleSave = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+      setFeedback(null);
+
+      const features = featuresText
+        .split("\n")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      const suitableFor = suitableForText
+        .split("\n")
+        .map((s) => s.trim())
+        .filter(Boolean);
+
+      const formData = {
+        name: name.trim(),
+        slug: slug.trim(),
+        shortDescription: shortDesc.trim() || null,
+        description: description.trim() || null,
+        productType,
+        price: productType === "BONUS" ? 0 : parseInt(price, 10) || 0,
+        originalPrice: originalPrice ? parseInt(originalPrice, 10) : null,
+        categoryId: categoryId || null,
+        thumbnailPath,
+        previewImages: previewImages.length > 0 ? previewImages : null,
+        pageCount: pageCount ? parseInt(pageCount, 10) : null,
+        fileFormat,
+        features: features.length > 0 ? features : null,
+        suitableFor: suitableFor.length > 0 ? suitableFor : null,
+        relatedIds,
+        bonusIncludedIds,
+      };
+
+      startTransition(async () => {
+        if (mode === "create" && !savedProductId) {
+          // First save — create draft
+          const result = await createProduct(formData);
+          if (result.success && result.data) {
+            setSavedProductId(result.data.id);
+            setFeedback({
+              type: "success",
+              message:
+                "Đã tạo sản phẩm nháp. Bây giờ bạn có thể tải ảnh và tệp tài liệu.",
+            });
+            // Redirect to edit page
+            router.replace(`/admin/products/${result.data.id}`);
+          } else {
+            setFeedback({
+              type: "error",
+              message: result.error ?? "Không thể tạo sản phẩm.",
+            });
+          }
+        } else if (savedProductId) {
+          // Update existing
+          const result = await updateProduct(savedProductId, formData);
+          if (result.success) {
+            setFeedback({ type: "success", message: "Đã lưu thay đổi." });
+            router.refresh();
+          } else {
+            setFeedback({
+              type: "error",
+              message: result.error ?? "Không thể cập nhật sản phẩm.",
+            });
+          }
+        }
+      });
+    },
+    [
+      name, slug, shortDesc, description, price, originalPrice, categoryId,
+      thumbnailPath, previewImages, pageCount, fileFormat, featuresText,
+      suitableForText, relatedIds, bonusIncludedIds, productType, mode,
+      savedProductId, router,
+    ],
+  );
+
+  // ─── Thumbnail Upload ───────────────────────────────────────────
+  async function handleThumbnailUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !savedProductId) return;
+
+    setUploading("thumbnail");
+    setFeedback(null);
+
+    const result = await uploadProductAsset(savedProductId, file);
+    if (result.success && result.path) {
+      // Delete old thumbnail if exists
+      if (thumbnailPath) {
+        await deleteProductAsset(thumbnailPath);
+      }
+      setThumbnailPath(result.path);
+      // Save to DB immediately
+      await updateProduct(savedProductId, { thumbnailPath: result.path });
+      setFeedback({ type: "success", message: "Đã tải ảnh đại diện." });
+      router.refresh();
+    } else {
+      setFeedback({ type: "error", message: result.error ?? "Lỗi tải ảnh." });
+    }
+    setUploading(null);
+    e.target.value = "";
+  }
+
+  // ─── Preview Image Upload ──────────────────────────────────────
+  async function handlePreviewUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !savedProductId) return;
+
+    setUploading("preview");
+    setFeedback(null);
+
+    const result = await uploadProductAsset(savedProductId, file);
+    if (result.success && result.path) {
+      const updated = [...previewImages, result.path];
+      setPreviewImages(updated);
+      await updateProduct(savedProductId, { previewImages: updated });
+      setFeedback({ type: "success", message: "Đã thêm ảnh xem trước." });
+      router.refresh();
+    } else {
+      setFeedback({ type: "error", message: result.error ?? "Lỗi tải ảnh." });
+    }
+    setUploading(null);
+    e.target.value = "";
+  }
+
+  async function handleRemovePreview(path: string) {
+    if (!savedProductId) return;
+    const updated = previewImages.filter((p) => p !== path);
+    setPreviewImages(updated);
+    await updateProduct(savedProductId, {
+      previewImages: updated.length > 0 ? updated : null,
+    });
+    await deleteProductAsset(path);
+    router.refresh();
+  }
+
+  // ─── PDF Preview Generation ─────────────────────────────────────────
+  async function handleGeneratePreviewPdf() {
+    if (!savedProductId) return;
+
+    setUploading("previewPdf");
+    setFeedback({ type: "success", message: "Đang tạo bản xem trước, vui lòng chờ..." });
+
+    const result = await generatePreviewAction(savedProductId);
+    if (result.success && result.data) {
+      setCurrentPreviewRecord(result.data);
+      setFeedback({ type: "success", message: "Đã tạo bản xem trước PDF thành công." });
+    } else {
+      setFeedback({ type: "error", message: result.error ?? "Lỗi tạo PDF xem trước." });
+    }
+    setUploading(null);
+  }
+
+  async function handleRemovePreviewPdf() {
+    if (!savedProductId || !currentPreviewRecord) return;
+    setFeedback(null);
+    startTransition(async () => {
+      const result = await deleteProductPreview(savedProductId, currentPreviewRecord.storage_path);
+      if (result.success) {
+        setCurrentPreviewRecord(null);
+        setFeedback({ type: "success", message: "Đã xóa bản xem trước PDF." });
+      } else {
+        setFeedback({ type: "error", message: result.error ?? "Không thể xóa bản xem trước." });
+      }
+    });
+  }
+
+  // ─── Product File Upload (R2 Multipart) ───────────────────────
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !savedProductId) return;
+    e.target.value = "";
+
+    setFeedback(null);
+    setFileUpload({
+      status: 'uploading',
+      fileName: file.name,
+      bytesUploaded: 0,
+      bytesTotal: file.size,
+      percentage: 0,
+      isLargeFile: false,
+    });
+
+    const currentProductId = savedProductId;
+
+    const result = await prepareR2Upload(currentProductId, file, {
+      onProgress: (bytesUploaded, bytesTotal) => {
+        const percentage = bytesTotal > 0 ? Math.round((bytesUploaded / bytesTotal) * 100) : 0;
+        setFileUpload(prev => ({
+          ...prev,
+          bytesUploaded,
+          bytesTotal,
+          percentage,
+        }));
+      },
+      onSuccess: (fileRecord) => {
+        setFiles((prev) => [...prev, fileRecord as unknown as DbProductFile]);
+        setFileUpload(prev => ({ ...prev, status: 'success' }));
+        setFeedback({ type: "success", message: `Đã tải file "${file.name}".` });
+        r2AbortRef.current = null;
+        router.refresh();
+      },
+      onError: (error) => {
+        setFileUpload(prev => ({ ...prev, status: 'error', error: error.message }));
+        setFeedback({ type: "error", message: error.message });
+        r2AbortRef.current = null;
+      },
+    });
+
+    if (!result.success) {
+      setFileUpload({ status: 'error', fileName: file.name, bytesUploaded: 0, bytesTotal: file.size, percentage: 0, isLargeFile: false, error: result.error });
+      setFeedback({ type: "error", message: result.error ?? "Lỗi tải file." });
+      return;
+    }
+
+    // Store abort ref and update large-file state
+    r2AbortRef.current = result.handle!.abort;
+    setFileUpload(prev => ({ ...prev, isLargeFile: result.isLargeFile ?? false }));
+
+    // Start the R2 multipart upload
+    result.handle!.start();
+  }
+
+  async function handleCancelFileUpload() {
+    if (r2AbortRef.current) {
+      await r2AbortRef.current();
+      r2AbortRef.current = null;
+    }
+    setFileUpload({ status: 'idle', fileName: '', bytesUploaded: 0, bytesTotal: 0, percentage: 0, isLargeFile: false });
+    setFeedback(null);
+  }
+
+  async function handleRemoveFile(fileRecord: DbProductFile) {
+    if (!savedProductId) return;
+    setFeedback(null);
+
+    startTransition(async () => {
+      const result = await removeProductFileRecord(fileRecord.id, savedProductId!);
+      if (result.success) {
+        setFiles((prev) => prev.filter((f) => f.id !== fileRecord.id));
+        setFeedback({ type: "success", message: "Đã xóa file." });
+        router.refresh();
+      } else {
+        setFeedback({
+          type: "error",
+          message: result.error ?? "Không thể xóa file.",
+        });
+      }
+    });
+  }
+
+  // ─── Toggle Active ─────────────────────────────────────────────
+  async function handleToggleActive() {
+    if (!savedProductId || !product) return;
+    
+    if (!product.is_active && files.length === 0) {
+      setFeedback({
+        type: "error",
+        message: "Sản phẩm cần ít nhất một tệp DOCX hoặc ZIP trước khi kích hoạt.",
+      });
+      return;
+    }
+
+    setFeedback(null);
+
+    startTransition(async () => {
+      const result = await toggleProductActive(
+        savedProductId!,
+        !product.is_active,
+      );
+      if (result.success) {
+        setFeedback({
+          type: "success",
+          message: product.is_active
+            ? "Đã ẩn sản phẩm."
+            : "Đã kích hoạt sản phẩm.",
+        });
+        router.refresh();
+      } else {
+        setFeedback({
+          type: "error",
+          message: result.error ?? "Không thể thay đổi trạng thái.",
+        });
+      }
+    });
+  }
+
+  const canUpload = !!savedProductId;
+  const thumbUrl = getProductAssetUrl(thumbnailPath);
+
+  return (
+    <div className="max-w-4xl">
+      {/* Feedback */}
+      {feedback && (
+        <div
+          className={`mb-4 px-4 py-3 rounded-lg text-sm flex items-start gap-2 ${
+            feedback.type === "success"
+              ? "bg-green-50 text-green-700 border border-green-200"
+              : "bg-red-50 text-red-700 border border-red-200"
+          }`}
+        >
+          {feedback.type === "error" && (
+            <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+          )}
+          {feedback.message}
+        </div>
+      )}
+
+      <form onSubmit={handleSave} className="space-y-6">
+        {/* ─── Basic Info ─── */}
+        <section className="bg-surface rounded-xl border border-border p-5 space-y-4 shadow-sm">
+          <h2 className="font-semibold text-text-primary">Thông tin cơ bản</h2>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-text-primary mb-1">
+                Tên sản phẩm <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => handleNameChange(e.target.value)}
+                className="w-full border border-border bg-transparent text-text-primary rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-text-primary mb-1">
+                Slug <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={slug}
+                onChange={(e) => {
+                  setSlugManual(true);
+                  setSlug(e.target.value);
+                }}
+                className="w-full border border-border bg-transparent text-text-primary rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary-500"
+                required
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-text-primary mb-1">
+              Danh mục
+            </label>
+            <select
+              value={categoryId}
+              onChange={(e) => setCategoryId(e.target.value)}
+              className="w-full border border-border bg-transparent text-text-primary rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+            >
+              <option value="">— Chọn danh mục —</option>
+              {categories.map((cat) => (
+                <option key={cat.id} value={cat.id}>
+                  {cat.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-text-primary mb-1">
+              Mô tả ngắn
+            </label>
+            <input
+              type="text"
+              value={shortDesc}
+              onChange={(e) => setShortDesc(e.target.value)}
+              maxLength={500}
+              className="w-full border border-border bg-transparent text-text-primary rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-text-primary mb-1">
+              Mô tả chi tiết
+            </label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={4}
+              className="w-full border border-border bg-transparent text-text-primary rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+            />
+          </div>
+        </section>
+
+        {/* ─── Product Type & Pricing ─── */}
+        <section className="bg-surface rounded-xl border border-border p-5 space-y-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <h2 className="font-semibold text-text-primary">Phân loại & Giá</h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="md:col-span-1">
+              <label className="block text-sm font-medium text-text-primary mb-1">
+                Loại sản phẩm <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={productType}
+                onChange={(e) => {
+                  const type = e.target.value as "PAID" | "BONUS";
+                  setProductType(type);
+                  if (type === "BONUS") {
+                    setPrice("0");
+                    setOriginalPrice("");
+                  }
+                }}
+                className="w-full border border-border bg-transparent text-text-primary rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+              >
+                  <option value="PAID">Sản phẩm trả phí</option>
+                  <option value="BONUS">Quà tặng (Miễn phí đi kèm)</option>
+              </select>
+            </div>
+            
+            <div className="md:col-span-1">
+              <label className="block text-sm font-medium text-text-primary mb-1">
+                Giá bán (VND) <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="number"
+                value={productType === "BONUS" ? 0 : price}
+                onChange={(e) => setPrice(e.target.value)}
+                min={0}
+                className="w-full border border-border bg-transparent text-text-primary rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:bg-surface-alt disabled:text-text-muted disabled:border-border"
+                required={productType === "PAID"}
+                disabled={productType === "BONUS"}
+              />
+            </div>
+            <div className="md:col-span-1">
+              <label className="block text-sm font-medium text-text-primary mb-1">
+                Giá gốc (VND)
+              </label>
+              <input
+                type="number"
+                value={originalPrice}
+                onChange={(e) => setOriginalPrice(e.target.value)}
+                min={0}
+                placeholder="Để trống nếu không giảm giá"
+                className="w-full border border-border bg-transparent text-text-primary rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:bg-surface-alt disabled:text-text-muted placeholder:text-text-muted disabled:border-border"
+                disabled={productType === "BONUS"}
+              />
+            </div>
+            <div className="md:col-span-1">
+              <label className="block text-sm font-medium text-text-primary mb-1">
+                Số trang
+              </label>
+              <input
+                type="number"
+                value={pageCount}
+                onChange={(e) => setPageCount(e.target.value)}
+                min={1}
+                className="w-full border border-border bg-transparent text-text-primary rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+              />
+            </div>
+          </div>
+          {price && productType === "PAID" && (
+            <p className="text-sm text-text-secondary">
+              Hiển thị: {formatCurrency(parseInt(price, 10) || 0)}
+              {originalPrice &&
+                parseInt(originalPrice, 10) > parseInt(price, 10) &&
+                ` (gốc: ${formatCurrency(parseInt(originalPrice, 10))})`}
+            </p>
+          )}
+
+          {productType === "BONUS" && (
+            <p className="text-sm text-purple-700 dark:text-purple-300 font-medium bg-purple-50 dark:bg-purple-900/30 px-3 py-2 rounded-lg border border-purple-100 dark:border-purple-800/50">
+              Sản phẩm này là quà tặng kèm. Sẽ không được bán lẻ, không hiển thị trên danh sách sản phẩm. Chỉ có thể tải xuống nếu mua sản phẩm trả phí có đính kèm nó.
+            </p>
+          )}
+        </section>
+
+        {/* ─── Enrichment ─── */}
+        <section className="bg-surface rounded-xl border border-border p-5 space-y-4 shadow-sm">
+          <h2 className="font-semibold text-text-primary">Nội dung hiển thị</h2>
+          <div>
+            <label className="block text-sm font-medium text-text-primary mb-1">
+              Tính năng nổi bật{" "}
+              <span className="text-xs text-text-muted">(mỗi dòng 1 mục)</span>
+            </label>
+            <textarea
+              value={featuresText}
+              onChange={(e) => setFeaturesText(e.target.value)}
+              rows={4}
+              placeholder={"50 đề đọc hiểu có đáp án\nHướng dẫn chấm bài rõ ràng\nFile tài liệu dễ sử dụng"}
+              className="w-full border border-border bg-transparent text-text-primary placeholder:text-text-muted rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-text-primary mb-1">
+              Phù hợp với{" "}
+              <span className="text-xs text-text-muted">(mỗi dòng 1 mục)</span>
+            </label>
+            <textarea
+              value={suitableForText}
+              onChange={(e) => setSuitableForText(e.target.value)}
+              rows={3}
+              placeholder={"Học sinh lớp 9\nGiáo viên Ngữ văn THCS"}
+              className="w-full border border-border bg-transparent text-text-primary placeholder:text-text-muted rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+            />
+          </div>
+        </section>
+
+        {/* ─── Relations ─── */}
+        <section className="bg-surface rounded-xl border border-border p-5 space-y-4 shadow-sm">
+          <h2 className="font-semibold text-text-primary">Sản phẩm liên kết</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {productType === "PAID" && (
+              <div>
+                <label className="block text-sm font-medium text-text-primary mb-2">
+                  Quà tặng kèm (BONUS_INCLUDED)
+                </label>
+                <div className="space-y-2 max-h-48 overflow-y-auto border border-border rounded-lg p-3 bg-surface-alt">
+                  {allProducts
+                    .filter((p) => p.product_type === "BONUS" && p.is_active && p.id !== savedProductId)
+                    .map((p) => (
+                      <label key={p.id} className="flex items-center gap-2 text-sm text-text-primary cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={bonusIncludedIds.includes(p.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setBonusIncludedIds([...bonusIncludedIds, p.id]);
+                            } else {
+                              setBonusIncludedIds(bonusIncludedIds.filter((id) => id !== p.id));
+                            }
+                          }}
+                          className="rounded border-border text-primary-600 focus:ring-primary-500 bg-transparent"
+                        />
+                        {p.name}
+                      </label>
+                    ))}
+                  {allProducts.filter((p) => p.product_type === "BONUS" && p.is_active && p.id !== savedProductId).length === 0 && (
+                    <span className="text-xs text-text-muted">Không có sản phẩm QUÀ TẶNG nào đang hoạt động.</span>
+                  )}
+                </div>
+                <p className="text-xs text-text-muted mt-2">
+                  Khách hàng sẽ được nhận thêm các tài liệu này miễn phí khi mua sản phẩm trả phí này.
+                </p>
+              </div>
+            )}
+
+            
+            <div className={productType === "BONUS" ? "md:col-span-2" : ""}>
+              <label className="block text-sm font-medium text-text-primary mb-2">
+                Tài liệu liên quan (RELATED)
+              </label>
+              <div className="space-y-2 max-h-48 overflow-y-auto border border-border rounded-lg p-3 bg-surface-alt">
+                {allProducts
+                  .filter((p) => p.is_active && p.id !== savedProductId)
+                  .map((p) => (
+                    <label key={p.id} className="flex items-center gap-2 text-sm text-text-primary cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={relatedIds.includes(p.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setRelatedIds([...relatedIds, p.id]);
+                          } else {
+                            setRelatedIds(relatedIds.filter((id) => id !== p.id));
+                          }
+                        }}
+                        className="rounded border-border text-primary-600 focus:ring-primary-500 bg-transparent"
+                      />
+                      {p.name} <span className="text-xs text-text-muted">({p.product_type})</span>
+                    </label>
+                  ))}
+                {allProducts.filter((p) => p.is_active && p.id !== savedProductId).length === 0 && (
+                  <span className="text-xs text-text-muted">Không có sản phẩm nào.</span>
+                )}
+              </div>
+              <p className="text-xs text-text-muted mt-2">
+                Sản phẩm sẽ hiển thị ở mục &quot;Tài liệu liên quan&quot; cuối trang.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* ─── File Uploads (only after product is saved) ─── */}
+        {canUpload && (
+          <div className="space-y-6">
+            {/* Hình ảnh */}
+            <section className="bg-surface rounded-xl border border-border p-5 space-y-4 shadow-sm">
+              <h2 className="font-semibold text-text-primary">Hình ảnh</h2>
+              
+              <div className="space-y-3">
+                <h3 className="text-sm font-medium text-text-secondary">Ảnh đại diện (Thumbnail)</h3>
+                {thumbUrl && (
+                  <div className="relative w-32 h-32 rounded-lg overflow-hidden border border-border">
+                    <Image
+                      src={thumbUrl}
+                      alt="Thumbnail"
+                      fill
+                      sizes="128px"
+                      className="object-cover"
+                    />
+                  </div>
+                )}
+                <label className="flex items-center gap-2 w-fit px-4 py-2 border border-border bg-surface-alt rounded-lg text-sm text-text-secondary hover:bg-surface-hover cursor-pointer transition-colors">
+                  {uploading === "thumbnail" ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Upload className="w-4 h-4" />
+                  )}
+                  {thumbnailPath ? "Thay ảnh" : "Tải ảnh lên"}
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    onChange={handleThumbnailUpload}
+                    disabled={!!uploading}
+                    className="hidden"
+                  />
+                </label>
+                <p className="text-xs text-text-muted">
+                  JPEG, PNG, WebP — tối đa 10 MB
+                </p>
+              </div>
+
+              <div className="space-y-3 pt-4 border-t border-border">
+                <h3 className="text-sm font-medium text-text-secondary">Ảnh xem trước</h3>
+                {previewImages.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {previewImages.map((path) => {
+                      const url = getProductAssetUrl(path);
+                      return (
+                        <div
+                          key={path}
+                          className="relative w-24 h-24 rounded-lg overflow-hidden border border-border group"
+                        >
+                          {url && (
+                            <Image
+                              src={url}
+                              alt="Preview"
+                              fill
+                              sizes="96px"
+                              className="object-cover"
+                            />
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleRemovePreview(path)}
+                            className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                            title="Xóa"
+                            aria-label="Xóa ảnh xem trước"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                <label className="flex items-center gap-2 w-fit px-4 py-2 border border-border bg-surface-alt rounded-lg text-sm text-text-secondary hover:bg-surface-hover cursor-pointer transition-colors">
+                  {uploading === "preview" ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <ImageIcon className="w-4 h-4" />
+                  )}
+                  Thêm ảnh xem trước
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    onChange={handlePreviewUpload}
+                    disabled={!!uploading}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+            </section>
+
+            {/* Xem trước tài liệu (PDF) - only for PAID */}
+            {productType === "PAID" && (
+              <section className="bg-surface rounded-xl border border-border p-5 space-y-3 shadow-sm">
+                <h2 className="font-semibold text-text-primary">Xem trước tài liệu</h2>
+                <p className="text-sm text-text-muted">Hệ thống tự tạo bản xem trước tối đa 25 trang từ tài liệu chính.</p>
+                
+                {currentPreviewRecord ? (
+                  <div className="flex flex-col gap-3 p-3 border border-border bg-surface-alt rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded bg-red-50 border border-red-100 flex items-center justify-center flex-shrink-0">
+                        <FileText className="w-5 h-5 text-red-500" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-text-primary truncate">
+                          {currentPreviewRecord.original_filename}
+                        </p>
+                        <p className="text-xs text-text-muted mt-0.5 flex items-center gap-2">
+                          <span>{currentPreviewRecord.page_count} trang</span>
+                          <span>•</span>
+                          <span>{(currentPreviewRecord.file_size / 1024 / 1024).toFixed(2)} MB</span>
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-2 mt-1">
+                      <button
+                        type="button"
+                        onClick={() => handleGeneratePreviewPdf()}
+                        disabled={!!uploading || isPending}
+                        className="px-3 py-1.5 text-xs border border-border bg-surface rounded-md hover:bg-surface-hover transition-colors disabled:opacity-50 flex items-center gap-1.5"
+                      >
+                        {uploading === "previewPdf" ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <RefreshCcw className="w-3.5 h-3.5" />
+                        )}
+                        Tạo lại preview
+                      </button>
+                      
+                      <button
+                        type="button"
+                        onClick={handleRemovePreviewPdf}
+                        disabled={isPending}
+                        className="px-3 py-1.5 text-xs text-red-600 border border-red-200 bg-red-50 rounded-md hover:bg-red-100 transition-colors disabled:opacity-50 flex items-center gap-1.5"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                        Xóa
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <button
+                      type="button"
+                      onClick={handleGeneratePreviewPdf}
+                      disabled={!!uploading}
+                      className="flex items-center gap-2 w-fit px-4 py-2 border border-border bg-surface-alt rounded-lg text-sm text-text-secondary hover:bg-surface-hover transition-colors disabled:opacity-50"
+                    >
+                      {uploading === "previewPdf" ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Wand2 className="w-4 h-4" />
+                      )}
+                      Tạo bản xem trước
+                    </button>
+                  </div>
+                )}
+              </section>
+            )}
+
+            {/* Tệp tài liệu */}
+            <section className="bg-surface rounded-xl border border-border p-5 space-y-3 shadow-sm">
+              <h2 className="font-semibold text-text-primary">
+                Tệp tài liệu{" "}
+                <span className="text-sm font-normal text-text-muted">
+                  ({files.length} file)
+                </span>
+              </h2>
+              {files.length > 0 && (
+                <div className="space-y-2">
+                  {files.map((f) => (
+                    <div
+                      key={f.id}
+                      className="flex items-center justify-between p-3 bg-surface-alt rounded-lg border border-border"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-10 h-10 rounded bg-surface border border-border flex items-center justify-center flex-shrink-0">
+                          <File className="w-5 h-5 text-primary-500" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium text-text-primary truncate">
+                            {f.file_name}
+                          </p>
+                          <p className="text-xs text-text-muted mt-0.5 flex items-center gap-2">
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-surface text-text-secondary border border-border font-medium text-[10px] uppercase">
+                              {f.file_name.split(".").pop()}
+                            </span>
+                            {formatFileSize(f.file_size)}
+                            {f.storage_provider === 'R2' && (
+                              <span className="inline-flex items-center px-1 py-0.5 rounded bg-blue-50 text-blue-600 border border-blue-200 font-medium text-[10px]">R2</span>
+                            )}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveFile(f)}
+                        disabled={isPending || isFileUploading}
+                        className="p-2 text-slate-400 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50"
+                        title="Xóa file"
+                        aria-label="Xóa file"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* R2 Multipart Upload Progress */}
+              {fileUpload.status === 'uploading' && (
+                <div className="p-4 bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800/50 rounded-lg space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Loader2 className="w-4 h-4 animate-spin text-primary-600 dark:text-primary-400 flex-shrink-0" />
+                      <span className="text-sm font-medium text-primary-700 dark:text-primary-300 truncate">
+                        Đang tải lên...
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleCancelFileUpload}
+                      className="text-xs text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 px-2 py-1 rounded hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors flex-shrink-0"
+                    >
+                      Hủy tải lên
+                    </button>
+                  </div>
+                  <div className="text-xs text-primary-600 dark:text-primary-400">
+                    <span className="truncate inline-block max-w-[200px] align-bottom">{fileUpload.fileName}</span>
+                    <span className="mx-1">—</span>
+                    {formatFileSize(fileUpload.bytesUploaded)} / {formatFileSize(fileUpload.bytesTotal)}
+                    <span className="mx-1">—</span>
+                    <span className="font-semibold">{fileUpload.percentage}%</span>
+                  </div>
+                  {/* Progress bar */}
+                  <div className="w-full h-2 bg-primary-100 dark:bg-primary-900/40 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-primary-500 dark:bg-primary-400 rounded-full transition-all duration-300 ease-out"
+                      style={{ width: `${fileUpload.percentage}%` }}
+                    />
+                  </div>
+                  {/* Large file warning */}
+                  {fileUpload.isLargeFile && (
+                    <div className="flex items-start gap-2 text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50 rounded px-3 py-2">
+                      <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                      <span>Tệp này lớn hơn 500 MB. Quá trình tải lên có thể mất nhiều thời gian hơn tùy tốc độ mạng.</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Upload error state */}
+              {fileUpload.status === 'error' && fileUpload.error && (
+                <div className="flex items-start gap-2 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 rounded-lg text-sm text-red-700 dark:text-red-400">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                  <span>{fileUpload.error}</span>
+                </div>
+              )}
+
+              <label className={`flex items-center gap-2 w-fit px-4 py-2 border border-border bg-surface-alt rounded-lg text-sm text-text-secondary hover:bg-surface-hover transition-colors ${(!!uploading || isFileUploading) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
+                {isFileUploading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <FileText className="w-4 h-4" />
+                )}
+                Tải tệp
+                <input
+                  type="file"
+                  accept=".docx,.zip,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/zip,application/x-zip-compressed"
+                  onChange={handleFileUpload}
+                  disabled={!!uploading || isFileUploading}
+                  className="hidden"
+                />
+              </label>
+              <p className="text-xs text-text-muted">
+                Hỗ trợ DOCX và ZIP — tối đa 1 GB. Tải lên có hỗ trợ tiếp tục nếu mất kết nối.
+              </p>
+            </section>
+          </div>
+        )}
+
+        {!canUpload && mode === "create" && (
+          <div className="p-4 bg-primary-50 border border-primary-200 rounded-lg text-sm text-primary-700">
+            <p>
+              Hãy <strong>tạo sản phẩm nháp</strong> trước để có thể tải ảnh và
+              tệp tài liệu.
+            </p>
+          </div>
+        )}
+
+        {/* ─── Save Button / Status ─── */}
+        <section className="bg-surface-alt rounded-xl border border-border p-5 flex items-center justify-between">
+          <div>
+            <h2 className="font-semibold text-text-primary mb-1">Trạng thái</h2>
+            <p className="text-sm text-text-secondary">
+              {product?.is_active ? "Sản phẩm đang được hiển thị trên cửa hàng." : "Sản phẩm đang ở trạng thái nháp."}
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            {product && savedProductId && (
+              <button
+                type="button"
+                onClick={handleToggleActive}
+                disabled={isPending}
+                className={`px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                  product.is_active
+                    ? "bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 hover:bg-orange-100 dark:hover:bg-orange-900/50 border border-orange-200 dark:border-orange-800/50"
+                    : "bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 hover:bg-green-100 dark:hover:bg-green-900/50 border border-green-200 dark:border-green-800/50"
+                }`}
+              >
+                {product.is_active ? "Chuyển thành bản nháp" : "Kích hoạt sản phẩm"}
+              </button>
+            )}
+
+            <button
+              type="submit"
+              disabled={isPending || isFileUploading}
+              className="flex items-center gap-2 bg-primary-600 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-primary-700 disabled:opacity-50 transition-colors"
+            >
+              {isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+              {isPending ? "Đang lưu..." : (mode === "create" && !savedProductId ? "Tạo sản phẩm nháp" : "Lưu thay đổi")}
+            </button>
+          </div>
+        </section>
+      </form>
+    </div>
+  );
+}
