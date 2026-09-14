@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { siteConfig } from "@/config/site";
 import { getProducts, getCategories } from "@/features/products/queries";
 import { ProductCard } from "@/components/product/product-card";
+import { ProductClickGuidance } from "@/components/product/product-click-guidance";
 import Link from "next/link";
 
 export const metadata: Metadata = {
@@ -56,6 +57,7 @@ export default async function ProductsPage() {
 
         {/* Product Grid */}
         <div className="flex-1">
+          <ProductClickGuidance />
           {products.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
               {products.map((product) => (

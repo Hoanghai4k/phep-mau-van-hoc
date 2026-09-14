@@ -5,6 +5,7 @@ import { ArrowLeft } from "lucide-react";
 import { siteConfig } from "@/config/site";
 import { getCategoryBySlug, getProducts, getCategories } from "@/features/products/queries";
 import { ProductCard } from "@/components/product/product-card";
+import { ProductClickGuidance } from "@/components/product/product-click-guidance";
 
 interface CategoryPageProps {
   params: Promise<{ slug: string }>;
@@ -73,6 +74,7 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
         </aside>
 
         <div className="flex-1">
+          <ProductClickGuidance />
           {products.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
               {products.map((product) => (

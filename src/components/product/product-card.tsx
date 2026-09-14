@@ -41,7 +41,10 @@ export function ProductCard({ product }: ProductCardProps) {
   return (
     <div className="group bg-surface rounded-2xl border border-border hover:border-primary-300 dark:hover:border-primary-700 shadow-sm hover:shadow-xl hover:shadow-primary-900/5 dark:hover:shadow-primary-900/20 transition-all duration-300 overflow-hidden flex flex-col">
       {/* Thumbnail */}
-      <div className="relative h-44 bg-gradient-to-br from-surface-alt via-surface to-accent-50 dark:from-surface-alt dark:via-surface dark:to-primary-900/20 flex items-center justify-center overflow-hidden border-b border-border/50">
+      <Link
+        href={`/products/${product.slug}`}
+        className="group/thumb relative block h-44 bg-gradient-to-br from-surface-alt via-surface to-accent-50 dark:from-surface-alt dark:via-surface dark:to-primary-900/20 flex items-center justify-center overflow-hidden border-b border-border/50"
+      >
         {(() => {
           const thumbUrl = getProductAssetUrl(product.thumbnail_path);
           return thumbUrl ? (
@@ -68,7 +71,7 @@ export function ProductCard({ product }: ProductCardProps) {
             {product.category.name}
           </span>
         )}
-      </div>
+      </Link>
 
       {/* Content */}
       <div className="p-5 flex-1 flex flex-col">

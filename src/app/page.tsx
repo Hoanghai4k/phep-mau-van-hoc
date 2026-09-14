@@ -15,7 +15,7 @@ import {
 import { siteConfig } from "@/config/site";
 import { getFeaturedProducts, getCategories } from "@/features/products/queries";
 import { ProductCard } from "@/components/product/product-card";
-
+import { ProductClickGuidance } from "@/components/product/product-click-guidance";
 export default async function HomePage() {
   const [featuredProducts, categories] = await Promise.all([
     getFeaturedProducts(8),
@@ -140,6 +140,8 @@ export default async function HomePage() {
               <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
+
+          <ProductClickGuidance />
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {featuredProducts.map((product) => (
