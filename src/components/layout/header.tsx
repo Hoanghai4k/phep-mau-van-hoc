@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ShoppingCart, Menu, X, BookOpen, ChevronDown } from "lucide-react";
+import { ShoppingCart, Menu, X, BookOpen, ChevronDown, Sparkles } from "lucide-react";
 import { siteConfig } from "@/config/site";
 import { mainNavigation } from "@/config/navigation";
 import { useCart } from "@/components/cart/cart-provider";
@@ -17,15 +17,16 @@ export function Header() {
   const cartCount = items.length;
 
   return (
-    <header className="sticky top-0 z-50 bg-surface/95 backdrop-blur-sm border-b border-border">
+    <header className="sticky top-0 z-50 bg-surface/95 backdrop-blur-md border-b border-border shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 group">
-            <div className="w-9 h-9 bg-gradient-to-br from-primary-500 to-primary-700 rounded-lg flex items-center justify-center shadow-md group-hover:shadow-lg transition-shadow">
-              <BookOpen className="w-5 h-5 text-white" />
+            <div className="relative w-10 h-10 bg-gradient-to-br from-primary-600 to-primary-800 rounded-xl flex items-center justify-center shadow-sm group-hover:shadow-md transition-all overflow-hidden border border-primary-500/30">
+              <BookOpen className="w-5 h-5 text-accent-50 relative z-10" />
+              <Sparkles className="w-3 h-3 text-accent-400 absolute top-1.5 right-1.5 animate-pulse" />
             </div>
-            <span className="text-lg font-bold text-text-primary hidden sm:block">
+            <span className="text-lg font-bold text-text-primary hidden sm:block tracking-tight">
               {siteConfig.name}
             </span>
           </Link>

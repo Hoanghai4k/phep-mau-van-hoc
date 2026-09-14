@@ -10,6 +10,7 @@ import {
   Star,
   ChevronDown,
   Zap,
+  Sparkles,
 } from "lucide-react";
 import { siteConfig } from "@/config/site";
 import { getFeaturedProducts, getCategories } from "@/features/products/queries";
@@ -24,41 +25,46 @@ export default async function HomePage() {
   return (
     <>
       {/* ─── Hero Section ─── */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-primary-600 to-primary-800">
+      <section className="relative overflow-hidden bg-gradient-to-br from-primary-800 via-primary-700 to-primary-900 border-b border-primary-900/50">
         {/* Background pattern */}
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-10 left-10 w-64 h-64 rounded-full bg-white/20 blur-3xl" />
-          <div className="absolute bottom-10 right-10 w-96 h-96 rounded-full bg-accent-300/20 blur-3xl" />
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-[-10%] left-[-5%] w-[40%] h-[50%] rounded-full bg-accent-500/10 blur-[100px]" />
+          <div className="absolute bottom-[-10%] right-[-5%] w-[50%] h-[60%] rounded-full bg-primary-400/20 blur-[120px]" />
+          
+          {/* Subtle literary sparkles */}
+          <Sparkles className="absolute top-[20%] right-[40%] w-8 h-8 text-accent-300/30 animate-pulse" />
+          <Sparkles className="absolute bottom-[30%] left-[10%] w-6 h-6 text-accent-200/20 animate-pulse" style={{ animationDelay: '1s' }} />
+          <Star className="absolute top-[10%] right-[15%] w-4 h-4 text-accent-400/30" />
         </div>
 
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-20">
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             {/* Left Content */}
             <div className="max-w-2xl">
-              <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm text-white/90 text-sm font-medium px-4 py-2 rounded-full mb-6 border border-white/20">
-                <Zap className="w-4 h-4 text-yellow-300" />
+              <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md text-accent-50 text-sm font-medium px-4 py-2 rounded-full mb-6 border border-white/20 shadow-sm">
+                <Zap className="w-4 h-4 text-accent-400" />
                 Tải ngay sau khi thanh toán — không cần chờ đợi
               </div>
 
-              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white leading-tight mb-6">
+              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white leading-[1.15] mb-6 tracking-tight">
                 {siteConfig.tagline}
               </h1>
 
-              <p className="text-lg md:text-xl text-primary-100 mb-8 leading-relaxed">
+              <p className="text-lg md:text-xl text-primary-100 mb-8 leading-relaxed font-medium">
                 Tài liệu tham khảo chuyên biệt cho THCS. Dễ dàng sử dụng, dễ dàng chỉnh sửa. Tải về ngay lập tức sau khi hoàn tất thanh toán.
               </p>
 
               <div className="flex flex-col sm:flex-row gap-4">
                 <Link
                   href="/products"
-                  className="inline-flex items-center justify-center gap-2 bg-white text-primary-700 font-semibold px-8 py-3.5 rounded-xl hover:bg-primary-50 shadow-sm hover:shadow-md transition-all duration-200 active:scale-[0.98]"
+                  className="inline-flex items-center justify-center gap-2 bg-accent-500 text-white font-semibold px-8 py-3.5 rounded-xl hover:bg-accent-600 shadow-md hover:shadow-lg transition-all duration-200 active:scale-[0.98]"
                 >
                   Xem tài liệu
                   <ArrowRight className="w-5 h-5" />
                 </Link>
                 <a
                   href="#how-it-works"
-                  className="inline-flex items-center justify-center gap-2 text-white font-medium px-8 py-3.5 rounded-xl border-2 border-white/30 hover:bg-white/10 transition-all duration-200"
+                  className="inline-flex items-center justify-center gap-2 text-white font-medium px-8 py-3.5 rounded-xl border-2 border-white/20 hover:bg-white/10 hover:border-white/30 transition-all duration-200"
                 >
                   Cách mua hàng
                   <ChevronDown className="w-5 h-5" />
@@ -68,7 +74,7 @@ export default async function HomePage() {
 
             {/* Right Visuals (Desktop only) */}
             <div className="hidden lg:block relative">
-              <div className="absolute inset-0 bg-gradient-to-tr from-white/10 to-transparent rounded-3xl transform rotate-3" />
+              <div className="absolute inset-0 bg-gradient-to-tr from-accent-500/10 to-transparent rounded-3xl transform rotate-3 scale-105" />
               <div className="relative grid grid-cols-2 gap-5 p-4">
                 {featuredProducts.slice(0, 2).map((product, idx) => (
                   <div 

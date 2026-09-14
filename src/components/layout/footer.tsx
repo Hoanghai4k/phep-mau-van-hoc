@@ -1,20 +1,21 @@
 import Link from "next/link";
-import { BookOpen, Mail, Phone } from "lucide-react";
+import { BookOpen, Mail, Phone, Sparkles } from "lucide-react";
 import { siteConfig } from "@/config/site";
 import { footerNavigation } from "@/config/navigation";
 
 export function Footer() {
   return (
-    <footer className="bg-[#172033] text-slate-300">
+    <footer className="bg-[#0F0728] text-slate-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           {/* Brand */}
           <div className="lg:col-span-1">
-            <Link href="/" className="flex items-center gap-2 mb-4">
-              <div className="w-9 h-9 bg-gradient-to-br from-primary-400 to-primary-600 rounded-lg flex items-center justify-center">
-                <BookOpen className="w-5 h-5 text-white" />
+            <Link href="/" className="flex items-center gap-2 mb-4 group">
+              <div className="relative w-9 h-9 bg-gradient-to-br from-primary-600 to-primary-800 rounded-lg flex items-center justify-center shadow-md group-hover:shadow-lg transition-all border border-primary-500/30 overflow-hidden">
+                <BookOpen className="w-4 h-4 text-accent-50 relative z-10" />
+                <Sparkles className="w-2.5 h-2.5 text-accent-400 absolute top-1.5 right-1.5 animate-pulse" />
               </div>
-              <span className="text-lg font-bold text-white">
+              <span className="text-lg font-bold text-white tracking-tight">
                 {siteConfig.name}
               </span>
             </Link>
@@ -25,7 +26,7 @@ export function Footer() {
               {siteConfig.contact.email && (
                 <a
                   href={`mailto:${siteConfig.contact.email}`}
-                  className="flex items-center gap-2 text-sm text-slate-400 hover:text-primary-400 transition-colors"
+                  className="flex items-center gap-2 text-sm text-slate-400 hover:text-accent-300 transition-colors"
                 >
                   <Mail className="w-4 h-4" />
                   {siteConfig.contact.email}
@@ -34,7 +35,7 @@ export function Footer() {
               {siteConfig.contact.phone && (
                 <a
                   href={`tel:${siteConfig.contact.phone}`}
-                  className="flex items-center gap-2 text-sm text-slate-400 hover:text-primary-400 transition-colors"
+                  className="flex items-center gap-2 text-sm text-slate-400 hover:text-accent-300 transition-colors"
                 >
                   <Phone className="w-4 h-4" />
                   {siteConfig.contact.phone}
@@ -53,7 +54,7 @@ export function Footer() {
                 <li key={item.href}>
                   <Link
                     href={item.href}
-                    className="text-sm text-slate-400 hover:text-primary-400 transition-colors"
+                    className="text-sm text-slate-400 hover:text-accent-300 transition-colors"
                   >
                     {item.label}
                   </Link>
@@ -72,7 +73,7 @@ export function Footer() {
                 <li key={item.href}>
                   <Link
                     href={item.href}
-                    className="text-sm text-slate-400 hover:text-primary-400 transition-colors"
+                    className="text-sm text-slate-400 hover:text-accent-300 transition-colors"
                   >
                     {item.label}
                   </Link>
@@ -91,7 +92,7 @@ export function Footer() {
                 <li key={item.href}>
                   <Link
                     href={item.href}
-                    className="text-sm text-slate-400 hover:text-primary-400 transition-colors"
+                    className="text-sm text-slate-400 hover:text-accent-300 transition-colors"
                   >
                     {item.label}
                   </Link>
@@ -102,7 +103,7 @@ export function Footer() {
         </div>
 
         {/* Bottom */}
-        <div className="mt-10 pt-8 border-t border-[#344054]/30">
+        <div className="mt-10 pt-8 border-t border-[#432E8C]/30">
           <p className="text-sm text-slate-500 text-center">
             {siteConfig.footer.copyright}
           </p>

@@ -39,9 +39,9 @@ export function ProductCard({ product }: ProductCardProps) {
   }
 
   return (
-    <div className="group bg-surface rounded-2xl border border-border hover:border-primary-200 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden flex flex-col">
+    <div className="group bg-surface rounded-2xl border border-border hover:border-primary-300 dark:hover:border-primary-700 shadow-sm hover:shadow-xl hover:shadow-primary-900/5 dark:hover:shadow-primary-900/20 transition-all duration-300 overflow-hidden flex flex-col">
       {/* Thumbnail */}
-      <div className="relative h-44 bg-gradient-to-br from-primary-50 via-primary-50 to-accent-50 flex items-center justify-center overflow-hidden">
+      <div className="relative h-44 bg-gradient-to-br from-surface-alt via-surface to-accent-50 dark:from-surface-alt dark:via-surface dark:to-primary-900/20 flex items-center justify-center overflow-hidden border-b border-border/50">
         {(() => {
           const thumbUrl = getProductAssetUrl(product.thumbnail_path);
           return thumbUrl ? (
@@ -49,21 +49,21 @@ export function ProductCard({ product }: ProductCardProps) {
               src={thumbUrl}
               alt={product.name}
               fill
-              className="object-contain p-2"
+              className="object-contain p-2 group-hover:scale-105 transition-transform duration-500"
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
             />
           ) : (
-            <FileText className="w-16 h-16 text-primary-300 group-hover:text-primary-400 transition-colors group-hover:scale-110 duration-300" />
+            <FileText className="w-16 h-16 text-primary-300 group-hover:text-primary-400 transition-colors group-hover:scale-110 duration-500" />
           );
         })()}
 
         {discount && (
-          <span className="absolute top-3 right-3 bg-error text-white text-xs font-bold px-2.5 py-1 rounded-full shadow-sm">
+          <span className="absolute top-3 right-3 bg-accent-500 text-white text-xs font-bold px-2.5 py-1 rounded-full shadow-sm">
             -{discount}%
           </span>
         )}
         {product.category && (
-          <span className="absolute top-3 left-3 bg-surface/90 backdrop-blur-sm text-primary-600 text-xs font-medium px-2.5 py-1 rounded-full flex items-center gap-1">
+          <span className="absolute top-3 left-3 bg-surface/90 backdrop-blur-sm text-primary-600 dark:text-primary-400 text-xs font-medium px-2.5 py-1 rounded-full flex items-center gap-1 border border-primary-100 dark:border-primary-800">
             <Tag className="w-3 h-3" />
             {product.category.name}
           </span>
@@ -73,13 +73,13 @@ export function ProductCard({ product }: ProductCardProps) {
       {/* Content */}
       <div className="p-5 flex-1 flex flex-col">
         <Link href={`/products/${product.slug}`} className="group/link">
-          <h3 className="font-semibold text-text-primary text-sm leading-snug line-clamp-2 group-hover/link:text-primary-600 transition-colors mb-2">
+          <h3 className="font-semibold text-text-primary text-sm leading-snug line-clamp-2 group-hover/link:text-primary-600 dark:group-hover/link:text-primary-400 transition-colors mb-2">
             {product.name}
           </h3>
         </Link>
 
         {product.short_description && (
-          <p className="text-xs text-text-muted line-clamp-2 mb-3 leading-relaxed">
+          <p className="text-xs text-text-muted line-clamp-2 mb-4 leading-relaxed">
             {product.short_description}
           </p>
         )}
@@ -97,14 +97,14 @@ export function ProductCard({ product }: ProductCardProps) {
           </div>
 
           {/* Price */}
-          <div className="flex items-baseline gap-2 mb-3">
+          <div className="flex items-baseline gap-2 mb-4">
               <>
-                <span className="text-lg font-bold text-primary-600">
+                <span className="text-lg font-bold text-primary-600 dark:text-primary-400">
                   {formatCurrency(product.price)}
                 </span>
                 {product.original_price &&
                   product.original_price > product.price && (
-                    <span className="text-sm text-text-muted line-through">
+                    <span className="text-sm text-text-muted line-through decoration-text-muted/50">
                       {formatCurrency(product.original_price)}
                     </span>
                   )}
@@ -118,8 +118,8 @@ export function ProductCard({ product }: ProductCardProps) {
               disabled={inCart}
               className={`w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-medium transition-all duration-200 ${
                 inCart
-                  ? "bg-primary-50 text-primary-600 border border-primary-200 cursor-default"
-                  : "bg-primary-600 text-white hover:bg-primary-700 shadow-sm hover:shadow-md active:scale-[0.98]"
+                  ? "bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 border border-primary-200 dark:border-primary-800 cursor-default"
+                  : "bg-primary-600 text-white hover:bg-primary-700 shadow-sm hover:shadow-md hover:shadow-primary-600/20 active:scale-[0.98]"
               }`}
             >
               {inCart ? (
@@ -136,7 +136,7 @@ export function ProductCard({ product }: ProductCardProps) {
             </button>
           ) : (
             <div
-              className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-medium bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800 cursor-default"
+              className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-medium bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800/50 cursor-default"
               data-testid="payments-disabled-card"
             >
               <Clock className="w-4 h-4" />

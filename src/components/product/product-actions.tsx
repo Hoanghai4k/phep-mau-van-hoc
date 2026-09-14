@@ -68,7 +68,7 @@ export function ProductActions({ product }: ProductActionsProps) {
         href={`/api/products/${product.id}/preview`}
         target="_blank"
         rel="noopener noreferrer"
-        className="w-full flex items-center justify-center gap-2 py-2.5 px-5 rounded-xl text-sm font-semibold text-primary-600 bg-primary-50 hover:bg-primary-100 border border-primary-200 transition-all active:scale-[0.98]"
+        className="w-full flex items-center justify-center gap-2 py-2.5 px-5 rounded-xl text-sm font-semibold text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/30 hover:bg-primary-100 dark:hover:bg-primary-900/50 border border-primary-200 dark:border-primary-800 transition-all active:scale-[0.98]"
         data-testid="mobile-preview-cta"
       >
         <ExternalLink className="w-4 h-4" />
@@ -102,18 +102,18 @@ export function ProductActions({ product }: ProductActionsProps) {
       <div className="space-y-3">
         <button
           onClick={handleBuyNow}
-          className="w-full flex items-center justify-center gap-2 py-3.5 px-6 rounded-xl text-base font-semibold bg-primary-600 text-white hover:bg-primary-700 shadow-sm hover:shadow-md transition-all active:scale-[0.98]"
+          className="w-full flex items-center justify-center gap-2 py-3.5 px-6 rounded-xl text-base font-semibold bg-primary-600 text-white hover:bg-primary-700 shadow-sm hover:shadow-md hover:shadow-primary-600/20 transition-all active:scale-[0.98]"
         >
           <Zap className="w-5 h-5" />
           Mua ngay
         </button>
-        <div className="flex items-center justify-center gap-2 py-3 text-green-600 text-sm font-medium">
+        <div className="flex items-center justify-center gap-2 py-3 text-green-600 dark:text-green-500 text-sm font-medium">
           <Check className="w-4 h-4" />
           Đã trong giỏ hàng
           <span className="text-text-muted">·</span>
           <Link
             href="/cart"
-            className="text-primary-600 hover:text-primary-700 inline-flex items-center gap-1"
+            className="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 inline-flex items-center gap-1"
           >
             Xem giỏ hàng
             <ArrowRight className="w-3.5 h-3.5" />
@@ -130,18 +130,18 @@ export function ProductActions({ product }: ProductActionsProps) {
       <div className="space-y-3">
         <button
           onClick={handleBuyNow}
-          className="w-full flex items-center justify-center gap-2 py-3.5 px-6 rounded-xl text-base font-semibold bg-primary-600 text-white hover:bg-primary-700 shadow-sm hover:shadow-md transition-all active:scale-[0.98]"
+          className="w-full flex items-center justify-center gap-2 py-3.5 px-6 rounded-xl text-base font-semibold bg-primary-600 text-white hover:bg-primary-700 shadow-sm hover:shadow-md hover:shadow-primary-600/20 transition-all active:scale-[0.98]"
         >
           <Zap className="w-5 h-5" />
           Mua ngay
         </button>
-        <div className="flex items-center justify-center gap-2 py-3 text-green-600 text-sm font-medium animate-in fade-in">
+        <div className="flex items-center justify-center gap-2 py-3 text-green-600 dark:text-green-500 text-sm font-medium animate-in fade-in">
           <Check className="w-4 h-4" />
           Đã thêm vào giỏ hàng
           <span className="text-text-muted">·</span>
           <Link
             href="/cart"
-            className="text-primary-600 hover:text-primary-700 inline-flex items-center gap-1"
+            className="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 inline-flex items-center gap-1"
           >
             Xem giỏ hàng
             <ArrowRight className="w-3.5 h-3.5" />
@@ -157,14 +157,14 @@ export function ProductActions({ product }: ProductActionsProps) {
     <div className="space-y-3">
       <button
         onClick={handleBuyNow}
-        className="w-full flex items-center justify-center gap-2 py-3.5 px-6 rounded-xl text-base font-semibold bg-primary-600 text-white hover:bg-primary-700 shadow-sm hover:shadow-md transition-all active:scale-[0.98]"
+        className="w-full flex items-center justify-center gap-2 py-3.5 px-6 rounded-xl text-base font-semibold bg-primary-600 text-white hover:bg-primary-700 shadow-sm hover:shadow-md hover:shadow-primary-600/20 transition-all active:scale-[0.98]"
       >
         <Zap className="w-5 h-5" />
         Mua ngay
       </button>
       <button
         onClick={handleAddToCart}
-        className="w-full flex items-center justify-center gap-2 py-3 px-6 rounded-xl text-base font-medium border-2 border-primary-200 text-primary-600 hover:bg-primary-50 hover:border-primary-300 transition-all active:scale-[0.98]"
+        className="w-full flex items-center justify-center gap-2 py-3 px-6 rounded-xl text-base font-medium border-2 border-primary-200 dark:border-primary-800 text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/30 transition-all active:scale-[0.98]"
       >
         <ShoppingCart className="w-5 h-5" />
         Thêm vào giỏ hàng
