@@ -15,6 +15,11 @@ vi.mock("@/features/orders/order-service", () => ({
 vi.mock("@/lib/url", () => ({
   getSiteUrl: () => "http://localhost:3000",
 }));
+vi.mock("@/config/site", () => ({
+  siteConfig: {
+    store: { paymentsEnabled: true },
+  },
+}));
 
 describe("Resume Payment API", () => {
   beforeEach(() => {

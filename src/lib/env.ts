@@ -20,9 +20,8 @@ const serverEnvSchema = z.object({
   // Features
   NEXT_PUBLIC_ENABLE_ANALYTICS: z
     .string().optional(),
-  // Email
-  EMAIL_API_KEY: z.string().optional(),
-  EMAIL_FROM: z.string().email().optional(),
+  // Email sender (Resend format: "Display Name <email>" or bare email)
+  EMAIL_FROM: z.string().min(1).optional(),
   ADMIN_SECRET_KEY: z.string().optional(),
   // Order access cookie signing secret (min 32 chars for production)
   ORDER_ACCESS_SECRET: z.string().min(32).optional(),

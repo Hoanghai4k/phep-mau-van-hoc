@@ -1,107 +1,45 @@
-# Phase 7.0B-2 — Provision Supabase B — Final Report
+# Phase 7.0B-8 — Contact Info + Production Polish FINAL REPORT
 
-## Supabase B
+## Contact
 
-| Item | Value |
-|------|-------|
-| Project linked | ✅ YES |
-| Project ref | `pezvysaqqqmihyjxhxiu` |
-| Site A project used | **NO** |
+Zalo phone: 0813817305
+Zalo URL: https://zalo.me/0813817305
+Facebook: https://www.facebook.com/share/1B1SqSijec/?mibextid=wwXIfr
+Support email: tailieuvanthcs123@gmail.com
 
----
+## Runtime
 
-## Migration
+Contact page: Uses Site B contact configuration, now includes Zalo, Facebook, and Email cards.
+Footer: Uses canonical `siteConfig` to dynamically show email and phone.
+Email support: Delivery email template uses `${siteConfig.url}/contact` link which points to the updated contact page. My Orders email uses `siteConfig.name`.
+Delivery support: Links directly to `/contact`.
+My Orders support: Links directly to `/contact`.
 
-| Item | Result | Expected |
-|------|--------|----------|
-| 001–014 applied | ✅ YES | YES |
-| Local = Remote | ✅ YES | YES |
-| 015 created | ❌ NO | NO |
-| migration repair | ❌ NO | NO |
+## Branding
 
----
+Site A runtime references: NONE
+TODO placeholders: NONE
+Canonical domain: https://phepmauvanhoc.com
 
-## Schema
+## Assets
 
-| Item | Result |
-|------|--------|
-| Core tables | ✅ `admin_users`, `categories`, `customers`, `download_tokens`, `order_bonus_items`, `order_items`, `orders`, `payment_attempts`, `product_files`, `product_previews`, `product_relations`, `products` |
-| product_previews | ✅ EXISTS |
-| page_count max | ✅ 25 (`CHECK (page_count >= 1 AND page_count <= 25)`) |
-| storage_provider | ✅ EXISTS on `product_files`, default `'SUPABASE'`, `CHECK IN ('SUPABASE', 'R2')` |
-| private.is_admin() | ✅ EXISTS in `private` schema |
-| product_type | ✅ `CHECK IN ('PAID', 'BONUS')` — FREE removed by migration 012 |
+Logo: DEFERRED TO FINAL VISUAL REBRAND
+Favicon: DEFERRED TO FINAL VISUAL REBRAND
+OpenGraph: DEFERRED TO FINAL VISUAL REBRAND
 
----
+## Payments
 
-## Storage
-
-| Item | Result |
-|------|--------|
-| Site B buckets created | ✅ `product-assets` (public), `product-files` (private), `product-previews` (private) |
-| Preview bucket private | ✅ YES (`product-previews.public = false`) |
-| Site A objects copied | **NO** |
-
----
-
-## Data
-
-| Table | Count |
-|-------|-------|
-| customers | 0 |
-| orders | 0 |
-| order_items | 0 |
-| order_bonus_items | 0 |
-| payment_attempts | 0 |
-| products | 0 |
-| product_files | 0 |
-| categories | 0 |
-
-All empty — transactionally clean. ✅
-
----
-
-## Types
-
-| Item | Result |
-|------|--------|
-| Remote types regenerated | ✅ YES (`npx supabase gen types typescript --linked`) |
-| storage_provider present | ✅ YES (line 386) |
-| bonus_name_snapshot present | ✅ YES (line 166) |
-| Convenience aliases added | ✅ `DbCategory`, `DbProduct`, `DbProductFile`, `DbProductPreview`, `DbPaymentAttemptUpdate` |
-
----
+paymentsEnabled: false
+payOS credentials added: NO
 
 ## Verification
 
-| Check | Result |
-|-------|--------|
-| Lint (`npm run lint`) | ✅ PASS |
-| TypeScript (`npx tsc --noEmit`) | ✅ PASS — 0 errors |
-| Tests (`npm run test`) | ✅ PASS — **548 tests, 36 files** |
-| Build (`npm run build`) | ✅ PASS — Next.js 16.3.1 (Turbopack) |
-| Audit (`npm audit --omit=dev`) | ⚠️ 2 pre-existing vulnerabilities (next 16.3.x critical, sharp high) — fixable with `npm audit fix --force` |
-
----
-
-## .env.local Fixes Applied
-
-1. **`NEXT_PUBLIC_SUPABASE_URL`**: Removed erroneous `/rest/v1/` suffix — Supabase JS client expects the base URL only
-2. **`PRODUCT_FILE_STORAGE_PROVIDER`**: Changed from `R2` to `SUPABASE` — R2 credentials are not configured yet (later phase)
-
----
-
-## Site A
-
-| Item | Result |
-|------|--------|
-| Any Site A Supabase mutation | **NO** |
-| Site A source changed | **NO** |
-| Site A storage changed | **NO** |
-| Site A migrations changed | **NO** |
-
----
+Lint: PASS
+TypeScript: PASS
+Tests: PASS
+Test count: 560
+Build: PASS (35 routes)
 
 ## FINAL STATUS
 
-### ✅ SUPABASE B READY FOR ADMIN BOOTSTRAP
+SITE B CONTACT/PRODUCTION POLISH READY

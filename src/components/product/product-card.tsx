@@ -2,9 +2,10 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { ShoppingCart, Check, FileText, Tag } from "lucide-react";
+import { ShoppingCart, Check, FileText, Tag, Clock } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { useCart } from "@/components/cart/cart-provider";
+import { siteConfig } from "@/config/site";
 import { getProductAssetUrl } from "@/lib/storage/storage";
 import type { ProductWithCategory } from "@/features/products/types";
 
@@ -15,6 +16,7 @@ interface ProductCardProps {
 export function ProductCard({ product }: ProductCardProps) {
   const { addItem, isInCart } = useCart();
   const inCart = isInCart(product.id);
+  const paymentsEnabled = siteConfig.store.paymentsEnabled;
 
   const discount =
     product.original_price && product.original_price > product.price
@@ -25,7 +27,7 @@ export function ProductCard({ product }: ProductCardProps) {
       : null;
 
   function handleAddToCart() {
-    if (inCart) return;
+    if (inCart || !paymentsEnabled) return;
     addItem({
       productId: product.id,
       name: product.name,
@@ -110,6 +112,7 @@ export function ProductCard({ product }: ProductCardProps) {
           </div>
 
           {/* Action Button */}
+          {paymentsEnabled ? (
             <button
               onClick={handleAddToCart}
               disabled={inCart}
@@ -131,8 +134,18 @@ export function ProductCard({ product }: ProductCardProps) {
                 </>
               )}
             </button>
+          ) : (
+            <div
+              className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-medium bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800 cursor-default"
+              data-testid="payments-disabled-card"
+            >
+              <Clock className="w-4 h-4" />
+              Thanh toán đang hoàn thiện
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
 }
+

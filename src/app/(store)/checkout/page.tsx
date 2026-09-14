@@ -3,15 +3,17 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/components/cart/cart-provider";
-import { ShoppingBag, ArrowRight, Loader2 } from "lucide-react";
+import { ShoppingBag, ArrowRight, Loader2, Clock } from "lucide-react";
 import Link from "next/link";
 import { CheckoutForm } from "@/components/checkout/checkout-form";
 import { CheckoutOrderSummary } from "@/components/checkout/checkout-order-summary";
+import { siteConfig } from "@/config/site";
 
 export default function CheckoutPage() {
   const { items, totalPrice, clearCart } = useCart();
   const [orderCode, setOrderCode] = useState<string | null>(null);
   const router = useRouter();
+  const paymentsEnabled = siteConfig.store.paymentsEnabled;
 
   // When order is created without a checkout URL (provider unconfigured),
   // redirect to the order status page instead of showing a stale message.
@@ -21,6 +23,30 @@ export default function CheckoutPage() {
       router.push(`/order/${orderCode}`);
     }
   }, [orderCode, clearCart, router]);
+
+  // Payments disabled — show friendly message
+  if (!paymentsEnabled) {
+    return (
+      <div className="max-w-2xl mx-auto px-4 py-20 text-center" data-testid="checkout-payments-disabled">
+        <div className="w-20 h-20 bg-amber-50 dark:bg-amber-900/20 rounded-full flex items-center justify-center mx-auto mb-6">
+          <Clock className="w-10 h-10 text-amber-500" />
+        </div>
+        <h1 className="text-2xl font-bold text-text-primary mb-3">
+          Thanh toán đang được hoàn thiện
+        </h1>
+        <p className="text-text-secondary mb-6">
+          Hệ thống thanh toán đang được cấu hình. Vui lòng quay lại sau hoặc liên hệ với chúng tôi để được hỗ trợ.
+        </p>
+        <Link
+          href="/products"
+          className="inline-flex items-center gap-2 bg-primary-600 text-white font-medium px-6 py-3 rounded-xl hover:bg-primary-700 transition-colors"
+        >
+          Xem tài liệu
+          <ArrowRight className="w-4 h-4" />
+        </Link>
+      </div>
+    );
+  }
 
   // Empty cart — not yet ordered
   if (items.length === 0 && !orderCode) {
@@ -82,3 +108,4 @@ export default function CheckoutPage() {
     </div>
   );
 }
+

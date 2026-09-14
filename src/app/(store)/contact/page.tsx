@@ -1,17 +1,17 @@
-import { MessageSquare, Phone } from "lucide-react";
+import { MessageSquare, Phone, Mail } from "lucide-react";
 import { siteConfig } from "@/config/site";
 
 export const metadata = { title: `Liên hệ | ${siteConfig.name}` };
 
 export default function ContactPage() {
   return (
-    <div className="max-w-3xl mx-auto px-4 py-12">
+    <div className="max-w-4xl mx-auto px-4 py-12">
       <h1 className="text-2xl font-bold text-text-primary mb-2 text-center">Liên hệ</h1>
       <p className="text-text-secondary text-center mb-10">
         Chúng tôi luôn sẵn sàng hỗ trợ bạn.
       </p>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
         {/* Zalo Card */}
         <div className="bg-surface rounded-2xl border border-border p-6 text-center shadow-sm flex flex-col h-full">
           <div className="w-12 h-12 bg-blue-50 dark:bg-blue-900/30 rounded-xl flex items-center justify-center mx-auto mb-4 flex-shrink-0">
@@ -51,6 +51,24 @@ export default function ContactPage() {
             className="inline-flex items-center justify-center w-full px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl transition-colors"
           >
             Nhắn qua Facebook
+          </a>
+        </div>
+
+        {/* Email Card */}
+        <div className="bg-surface rounded-2xl border border-border p-6 text-center shadow-sm flex flex-col h-full">
+          <div className="w-12 h-12 bg-blue-50 dark:bg-blue-900/30 rounded-xl flex items-center justify-center mx-auto mb-4 flex-shrink-0">
+            <Mail className="w-6 h-6 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+          </div>
+          <h2 className="font-semibold text-text-primary mb-2">Email</h2>
+          <div className="h-[28px] mb-2" /> {/* Spacer */}
+          <p className="text-text-secondary text-sm flex-grow mb-6 break-all">
+            {siteConfig.contact.email}
+          </p>
+          <a
+            href={`mailto:${siteConfig.contact.email}`}
+            className="inline-flex items-center justify-center w-full px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-xl transition-colors"
+          >
+            Gửi Email
           </a>
         </div>
       </div>

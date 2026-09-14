@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ShoppingCart, Check, Zap, ArrowRight, ExternalLink } from "lucide-react";
+import { ShoppingCart, Check, Zap, ArrowRight, ExternalLink, Clock } from "lucide-react";
 import Link from "next/link";
 import { useCart } from "@/components/cart/cart-provider";
+import { siteConfig } from "@/config/site";
 import type { ProductWithCategory } from "@/features/products/types";
 
 interface ProductActionsProps {
@@ -16,6 +17,10 @@ interface ProductActionsProps {
  * - Buy Now: adds to cart → redirects to /checkout
  * - Add to Cart: adds to cart → shows inline feedback
  * - Already in cart: shows "Đã trong giỏ" + link to cart
+ *
+ * When siteConfig.store.paymentsEnabled is false, purchase buttons
+ * are replaced with a friendly "coming soon" message. Preview
+ * and browsing remain fully functional.
  *
  * For PAID products, a mobile-only "Xem thử tài liệu" link is always
  * rendered below the purchase buttons. It opens the stable preview
@@ -29,6 +34,7 @@ export function ProductActions({ product }: ProductActionsProps) {
   const [justAdded, setJustAdded] = useState(false);
 
   const showMobilePreview = product.product_type === "PAID";
+  const paymentsEnabled = siteConfig.store.paymentsEnabled;
 
   function addToCartItem() {
     addItem({
@@ -73,6 +79,22 @@ export function ProductActions({ product }: ProductActionsProps) {
       </p>
     </div>
   ) : null;
+
+  // ─── Payments disabled: show friendly message ───────────────────
+  if (!paymentsEnabled) {
+    return (
+      <div className="space-y-3" data-testid="payments-disabled-cta">
+        <div className="w-full flex items-center justify-center gap-2 py-3.5 px-6 rounded-xl text-base font-semibold bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border-2 border-amber-200 dark:border-amber-800 cursor-default">
+          <Clock className="w-5 h-5" />
+          Thanh toán đang được hoàn thiện
+        </div>
+        <p className="text-sm text-text-muted text-center">
+          Vui lòng quay lại sau hoặc liên hệ với chúng tôi để được hỗ trợ.
+        </p>
+        {mobilePreviewCta}
+      </div>
+    );
+  }
 
   // Already in cart state
   if (inCart && !justAdded) {

@@ -66,9 +66,9 @@ describe("delivery email template", () => {
     expect(html).toContain("30 ngày");
   });
 
-  it("HTML contains support email", () => {
+  it("HTML contains support link", () => {
     const html = buildDeliveryEmailHtml(sampleData);
-    expect(html).toContain(siteConfig.contact.email);
+    expect(html).toContain(`${siteConfig.url}/contact`);
   });
 
   it("HTML does NOT contain storage path patterns", () => {

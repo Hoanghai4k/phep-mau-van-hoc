@@ -13,20 +13,20 @@ export const siteConfig = {
   url: process.env.NEXT_PUBLIC_SITE_URL || "https://phepmauvanhoc.com",
 
   contact: {
-    email: "",
-    phone: "",
+    email: "tailieuvanthcs123@gmail.com",
+    phone: "0813817305",
     address: "",
   },
 
   support: {
-    zaloPhone: "TODO_SITE_B_ZALO_PHONE",
-    zaloUrl: "TODO_SITE_B_ZALO_URL",
-    facebookUrl: "TODO_SITE_B_FACEBOOK_URL",
+    zaloPhone: "0813817305",
+    zaloUrl: "https://zalo.me/0813817305",
+    facebookUrl: "https://www.facebook.com/share/1B1SqSijec/?mibextid=wwXIfr",
   },
 
   social: {
-    facebook: "",
-    zalo: "",
+    facebook: "https://www.facebook.com/share/1B1SqSijec/?mibextid=wwXIfr",
+    zalo: "https://zalo.me/0813817305",
     youtube: "",
   },
 
@@ -37,6 +37,8 @@ export const siteConfig = {
   },
 
   store: {
+    /** Master switch for purchase/checkout flows. Set to true when payOS is configured. */
+    paymentsEnabled: false,
     currency: "VND",
     currencySymbol: "₫",
     supportedFormats: ["DOCX", "ZIP"] as readonly string[],

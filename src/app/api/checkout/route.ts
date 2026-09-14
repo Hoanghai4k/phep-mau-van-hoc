@@ -20,8 +20,17 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { normalizeEmail } from "@/lib/utils";
 import { getSiteUrl } from "@/lib/url";
 import { setOrderAccessCookie } from "@/lib/auth/order-access";
+import { siteConfig } from "@/config/site";
 
 export async function POST(request: NextRequest) {
+  // Guard: payments must be enabled
+  if (!siteConfig.store.paymentsEnabled) {
+    return NextResponse.json(
+      { success: false, error: "Hệ thống thanh toán đang được hoàn thiện. Vui lòng quay lại sau." },
+      { status: 503 },
+    );
+  }
+
   try {
     const body = await request.json();
 

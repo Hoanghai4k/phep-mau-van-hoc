@@ -16,8 +16,17 @@ import { getSiteUrl } from "@/lib/url";
 import { getOrderAccessCookie } from "@/lib/auth/order-access";
 import { generateUniquePaymentOrderCode } from "@/features/orders/order-service";
 import { PAYMENT_ATTEMPT_STATUS } from "@/lib/constants";
+import { siteConfig } from "@/config/site";
 
 export async function POST(request: NextRequest) {
+  // Guard: payments must be enabled
+  if (!siteConfig.store.paymentsEnabled) {
+    return NextResponse.json(
+      { success: false, error: "Hệ thống thanh toán đang được hoàn thiện. Vui lòng quay lại sau." },
+      { status: 503 },
+    );
+  }
+
   try {
     const body = await request.json();
     const orderCode = body.orderCode as string | undefined;

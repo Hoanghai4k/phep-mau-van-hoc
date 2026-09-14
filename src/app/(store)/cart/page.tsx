@@ -8,6 +8,7 @@ import {
   ArrowRight,
   FileText,
   ArrowLeft,
+  Clock,
 } from "lucide-react";
 import { useCart } from "@/components/cart/cart-provider";
 import { formatCurrency } from "@/lib/utils";
@@ -16,6 +17,7 @@ import { getProductAssetUrl } from "@/lib/storage/storage";
 
 export default function CartPage() {
   const { items, removeItem, clearCart, totalPrice } = useCart();
+  const paymentsEnabled = siteConfig.store.paymentsEnabled;
 
   if (items.length === 0) {
     return (
@@ -133,16 +135,29 @@ export default function CartPage() {
             <p className="text-xs text-text-muted mt-3 mb-4">
               Giá sẽ được xác nhận lại từ hệ thống khi thanh toán.
             </p>
-            <Link
-              href="/checkout"
-              className="w-full flex items-center justify-center gap-2 bg-primary-600 text-white font-semibold py-3.5 rounded-xl hover:bg-primary-700 shadow-md hover:shadow-lg transition-all"
-            >
-              Tiến hành thanh toán
-              <ArrowRight className="w-4 h-4" />
-            </Link>
+            {paymentsEnabled ? (
+              <Link
+                href="/checkout"
+                className="w-full flex items-center justify-center gap-2 bg-primary-600 text-white font-semibold py-3.5 rounded-xl hover:bg-primary-700 shadow-md hover:shadow-lg transition-all"
+              >
+                Tiến hành thanh toán
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            ) : (
+              <div data-testid="cart-payments-disabled">
+                <div className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl text-sm font-semibold bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border-2 border-amber-200 dark:border-amber-800 cursor-default">
+                  <Clock className="w-5 h-5" />
+                  Thanh toán đang được hoàn thiện
+                </div>
+                <p className="text-xs text-text-muted text-center mt-2">
+                  Vui lòng quay lại sau hoặc liên hệ với chúng tôi để được hỗ trợ.
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </div>
     </div>
   );
 }
+
