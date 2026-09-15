@@ -38,7 +38,7 @@ export const siteConfig = {
 
   store: {
     /** Master switch for purchase/checkout flows. Set to true when payOS is configured. */
-    paymentsEnabled: false,
+    paymentsEnabled: true,
     currency: "VND",
     currencySymbol: "₫",
     supportedFormats: ["DOCX", "ZIP"] as readonly string[],
